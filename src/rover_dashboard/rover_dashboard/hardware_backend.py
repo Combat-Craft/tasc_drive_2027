@@ -171,23 +171,21 @@ class HardwareBackendNode(Node):
 
         if cmd_type == 'turn_on_all':
             self.kill_active = False  # Clear kill state
-            # Create individual commands for all subsystems
-            for subsystem_name in self.subsystems.keys():
-                enable_command = {
-                    'type': 'set_power',
-                    'target': subsystem_name,
-                    'enable': True,
-                    'timestamp': command.get('timestamp', datetime.now().isoformat()),
-                }
-                relay_msg = String()
-                relay_msg.data = json.dumps(enable_command)
-                self.relay_command_pub.publish(relay_msg)
-                # Update local state
-                self.subsystems[subsystem_name]['enabled'] = True
-                self.subsystems[subsystem_name]['state'] = 'ON'
-                self.subsystems[subsystem_name]['health'] = 'healthy'
-                self.subsystems[subsystem_name]['fault'] = 'None'
-                self.subsystems[subsystem_name]['last_command'] = f'ENABLE ALL @ {now_string()}'
+            # Forward a single turn_on_all. It used to be expanded into
+            # set_power(enable=True) per subsystem, but set_power.enable is the
+            # RELAY state (True = relay energized = motor power CUT), so
+            # "Turn On All" was actually cutting motor power.
+            turn_on_command = {
+                'type': 'turn_on_all',
+                'timestamp': command.get('timestamp', datetime.now().isoformat()),
+            }
+            relay_msg = String()
+            relay_msg.data = json.dumps(turn_on_command)
+            self.relay_command_pub.publish(relay_msg)
+            # Relay state is the source of truth (published every 2 s), so
+            # only record the command here.
+            for subsystem in self.subsystems.values():
+                subsystem['last_command'] = f'ENABLE ALL @ {now_string()}'
             self.get_logger().info('Turn On All command executed')
 
         if cmd_type == 'software_kill':
@@ -199,9 +197,9 @@ class HardwareBackendNode(Node):
             relay_msg = String()
             relay_msg.data = json.dumps(kill_command)
             self.relay_command_pub.publish(relay_msg)
+            # 'enabled'/'state' mirror the RELAY (energized = motors off) and
+            # are left to the next relay state message.
             for subsystem in self.subsystems.values():
-                subsystem['enabled'] = False
-                subsystem['state'] = 'OFF'
                 subsystem['health'] = 'offline'
                 subsystem['fault'] = 'Software kill active'
                 subsystem['last_command'] = f'KILLED @ {now_string()}'
