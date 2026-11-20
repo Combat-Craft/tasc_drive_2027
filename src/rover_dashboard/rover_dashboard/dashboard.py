@@ -882,7 +882,8 @@ class DashboardWindow(QMainWindow):
             self.detail_panel.render_component(self.component_states[self.current_selected])
 
     def on_toggle_component(self, name: str, enable: bool) -> None:
-        # enable here is the REAL state we want (True = turn relay ON = motor ON)
+        # enable is the desired RELAY state: True = relay energized = motor power CUT,
+        # False = relay released = motor powered (same meaning as jetson_relay).
         command = {
             'type': 'set_power',
             'target': name,
@@ -914,11 +915,11 @@ class DashboardWindow(QMainWindow):
         if confirm != QMessageBox.Yes:
             return
         
-        # Motors OFF = Relays ON
+        # Explicit kill: the relay board cuts motor power AND the drive
+        # hardware plugin closes the motors. (A set_power command here was read
+        # as "power ON" by the plugin, which then reconnected all motors.)
         command = {
-            'type': 'set_power',
-            'target': 'all',
-            'enable': True,   # True = relays ON = motors OFF
+            'type': 'software_kill',
             'timestamp': datetime.now().isoformat(),
         }
         self.log_panel.add_entry('SOFTWARE KILL - turning motors OFF (relays ON)')
