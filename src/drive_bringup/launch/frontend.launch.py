@@ -35,7 +35,7 @@ def generate_launch_description():
 
     dashboard = Node(
         package="rover_dashboard",
-        executable="dashboard",
+        executable="operator_gui",
         name="rover_dashboard",
         output="screen",
     )

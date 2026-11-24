@@ -20,6 +20,7 @@ setup(
         'console_scripts': [
             'dashboard = rover_dashboard.dashboard:main',
             'hardware_backend = rover_dashboard.hardware_backend:main',
+            'operator_gui = rover_dashboard.operator_gui:main',
         ],
     },
 )
